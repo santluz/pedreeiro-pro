@@ -5,7 +5,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import {
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,   // ← troca signInWithPopup por este
   signOut,
   User,
 } from 'firebase/auth'
@@ -38,13 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub
   }, [])
 
-  const login = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider)
-    } catch (e) {
-      console.error('Erro no login:', e)
-    }
+const login = async () => {
+  try {
+    await signInWithRedirect(auth, googleProvider)
+  } catch (e) {
+    console.error('Erro no login:', e)
   }
+}
 
   const logout = async () => {
     await signOut(auth)
