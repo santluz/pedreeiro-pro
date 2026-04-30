@@ -1,0 +1,17 @@
+/* src/app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Remove tap highlight no mobile */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Inputs com foco laranja */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #E67E22 !important;
+  box-shadow: 0 0 0 3px rgba(230,126,34,.15);
+}
+
+/* Scroll invisível no mobile */
+::-webkit-scrollbar { display: none; }
