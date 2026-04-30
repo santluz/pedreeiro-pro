@@ -1,27 +1,28 @@
 'use client'
 // src/hooks/useAuth.tsx
-// Contexto global de autenticação. Envolve o app inteiro (layout.tsx).
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import {
   onAuthStateChanged,
-  signInWithRedirect,   // ← troca signInWithPopup por este
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut,
   User,
 } from 'firebase/auth'
-import { auth, googleProvider } from '@/lib/firebase'
+import { auth } from '@/lib/firebase'
 
 interface AuthCtx {
   user: User | null
   loading: boolean
-  login: () => Promise<void>
+  login: (email: string, senha: string) => Promise<string | null>
+  cadastrar: (email: string, senha: string) => Promise<string | null>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthCtx>({
   user: null,
   loading: true,
-  login: async () => {},
+  login: async () => null,
+  cadastrar: async () => null,
   logout: async () => {},
 })
 
@@ -30,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Observa mudanças de autenticação em tempo real
     const unsub = onAuthStateChanged(auth, u => {
       setUser(u)
       setLoading(false)
@@ -38,20 +38,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub
   }, [])
 
-const login = async () => {
-  try {
-    await signInWithRedirect(auth, googleProvider)
-  } catch (e) {
-    console.error('Erro no login:', e)
+  // Retorna null se ok, ou mensagem de erro amigável
+  const login = async (email: string, senha: string): Promise<string | null> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, senha)
+      return null
+    } catch (e: any) {
+      const cod = e?.code || ''
+      if (cod === 'auth/user-not-found')     return 'E-mail não cadastrado.'
+      if (cod === 'auth/wrong-password')     return 'Senha incorreta.'
+      if (cod === 'auth/invalid-email')      return 'E-mail inválido.'
+      if (cod === 'auth/invalid-credential') return 'E-mail ou senha incorretos.'
+      return 'Erro ao entrar. Tente novamente.'
+    }
   }
-}
 
-  const logout = async () => {
-    await signOut(auth)
+  const cadastrar = async (email: string, senha: string): Promise<string | null> => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, senha)
+      return null
+    } catch (e: any) {
+      const cod = e?.code || ''
+      if (cod === 'auth/email-already-in-use') return 'E-mail já cadastrado. Faça login.'
+      if (cod === 'auth/weak-password')        return 'Senha fraca. Use pelo menos 6 caracteres.'
+      if (cod === 'auth/invalid-email')        return 'E-mail inválido.'
+      return 'Erro ao cadastrar. Tente novamente.'
+    }
   }
+
+  const logout = async () => { await signOut(auth) }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, cadastrar, logout }}>
       {children}
     </AuthContext.Provider>
   )

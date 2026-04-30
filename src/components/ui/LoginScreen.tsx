@@ -1,37 +1,118 @@
 'use client'
 // src/components/ui/LoginScreen.tsx
-// Tela de login exibida antes de o usuário autenticar
-
+import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 
+type Modo = 'login' | 'cadastro'
+
 export default function LoginScreen() {
-  const { login } = useAuth()
+  const { login, cadastrar } = useAuth()
+
+  const [modo,   setModo]   = useState<Modo>('login')
+  const [email,  setEmail]  = useState('')
+  const [senha,  setSenha]  = useState('')
+  const [erro,   setErro]   = useState('')
+  const [loading,setLoading]= useState(false)
+
+  const handleSubmit = async () => {
+    if (!email.trim() || !senha.trim()) {
+      setErro('Preencha o e-mail e a senha.')
+      return
+    }
+    setErro('')
+    setLoading(true)
+
+    const resultado = modo === 'login'
+      ? await login(email.trim(), senha)
+      : await cadastrar(email.trim(), senha)
+
+    setLoading(false)
+    if (resultado) setErro(resultado)
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-      {/* Ícone */}
-      <div className="text-7xl mb-4">🏗️</div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">PedreiroPro</h1>
-      <p className="text-gray-500 text-sm mb-10 leading-relaxed">
-        Orçamentos, financeiro e portfólio para pedreiros autônomos — tudo no celular.
-      </p>
+    <div className="flex flex-col justify-center h-full px-6 py-8">
 
+      {/* Logo */}
+      <div className="text-center mb-8">
+        <div className="text-6xl mb-3">🏗️</div>
+        <h1 className="text-2xl font-bold text-gray-800">PedreiroPro</h1>
+        <p className="text-gray-400 text-sm mt-1">
+          Orçamentos e financeiro para pedreiros autônomos
+        </p>
+      </div>
+
+      {/* Toggle Login / Cadastro */}
+      <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+        {(['login', 'cadastro'] as Modo[]).map(m => (
+          <button
+            key={m}
+            onClick={() => { setModo(m); setErro('') }}
+            className={`flex-1 py-2.5 rounded-lg text-[14px] font-semibold transition-all ${
+              modo === m
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-400'
+            }`}
+          >
+            {m === 'login' ? 'Entrar' : 'Criar conta'}
+          </button>
+        ))}
+      </div>
+
+      {/* Formulário */}
+      <div className="space-y-0">
+        <label className="text-[13px] font-medium text-gray-500 mb-1.5 block">
+          E-mail
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="seu@email.com"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-[15px] mb-4"
+          autoCapitalize="none"
+          autoCorrect="off"
+        />
+
+        <label className="text-[13px] font-medium text-gray-500 mb-1.5 block">
+          Senha {modo === 'cadastro' && <span className="text-gray-400 font-normal">(mínimo 6 caracteres)</span>}
+        </label>
+        <input
+          type="password"
+          value={senha}
+          onChange={e => setSenha(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder={modo === 'cadastro' ? 'Crie uma senha' : 'Sua senha'}
+          className="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-[15px] mb-4"
+        />
+      </div>
+
+      {/* Erro */}
+      {erro && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 mb-4">
+          {erro}
+        </div>
+      )}
+
+      {/* Botão principal */}
       <button
-        onClick={login}
-        className="w-full bg-brand text-white rounded-xl py-4 text-[16px] font-semibold flex items-center justify-center gap-3 mb-4 active:bg-brand-dark"
+        onClick={handleSubmit}
+        disabled={loading}
+        className="w-full bg-brand text-white rounded-xl py-4 text-[16px] font-semibold disabled:opacity-60 mb-4"
       >
-        {/* Google icon */}
-        <svg width="20" height="20" viewBox="0 0 48 48">
-          <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
-          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.5 6.5 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-          <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.3 44 24 44z"/>
-          <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.2 5.2C37 38.2 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/>
-        </svg>
-        Entrar com Google
+        {loading
+          ? 'Aguarde...'
+          : modo === 'login' ? 'Entrar' : 'Criar minha conta'
+        }
       </button>
 
-      <p className="text-xs text-gray-400">
-        Seus dados ficam salvos na nuvem e acessíveis em qualquer aparelho.
+      {/* Dica */}
+      <p className="text-center text-xs text-gray-400 leading-relaxed">
+        {modo === 'login'
+          ? 'Não tem conta ainda? Toque em "Criar conta" acima.'
+          : 'Seus dados ficam salvos na nuvem e aparecem em qualquer aparelho.'
+        }
       </p>
     </div>
   )
