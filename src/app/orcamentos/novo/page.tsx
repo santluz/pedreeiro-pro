@@ -16,23 +16,23 @@ export default function NovoOrcamentoPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  const [servicos,   setServicos]   = useState<Servico[]>([])
-  const [itens,      setItens]      = useState<ItemOrcamento[]>([])
-  const [carregando, setCarregando] = useState(true)
-
-  const [cliente,   setCliente]   = useState('')
-  const [descricao, setDescricao] = useState('')
-  const [data,      setData]      = useState(hoje())
-  const [svcId,     setSvcId]     = useState('')
-  const [qtd,       setQtd]       = useState('1')
-  const [erro,      setErro]      = useState('')
+  const [servicos,       setServicos]       = useState<Servico[]>([])
+  const [itens,          setItens]          = useState<ItemOrcamento[]>([])
+  const [carregando,     setCarregando]     = useState(true)
+  const [cliente,        setCliente]        = useState('')
+  const [descricao,      setDescricao]      = useState('')
+  const [data,           setData]           = useState(hoje())
+  const [svcSelecionado, setSvcSelecionado] = useState<Servico | null>(null)
+  const [qtd,            setQtd]            = useState('1')
+  const [erro,           setErro]           = useState('')
+  const [salvando,       setSalvando]       = useState(false)
 
   useEffect(() => {
     if (!user) return
     getDocs(colServicos(user.uid)).then(snap => {
       const lista = snap.docs.map(d => ({ id: d.id, ...d.data() } as Servico))
       setServicos(lista)
-      if (lista.length > 0) setSvcId(lista[0].id)
+      setSvcSelecionado(lista[0] ?? null)
       setCarregando(false)
     })
   }, [user])
@@ -44,15 +44,20 @@ export default function NovoOrcamentoPage() {
   const total = itens.reduce((s, i) => s + i.sub, 0)
 
   const addItem = () => {
-    const sv = servicos.find(s => s.id === svcId)
-    if (!sv) return
+    if (!svcSelecionado) return
     const q = parseFloat(qtd) || 1
     setItens(prev => {
-      const idx = prev.findIndex(i => i.sid === sv.id)
+      const idx = prev.findIndex(i => i.sid === svcSelecionado.id)
       if (idx >= 0) {
-        const c = [...prev]; c[idx] = { ...c[idx], qtd: q, sub: sv.valor * q }; return c
+        const c = [...prev]
+        c[idx] = { ...c[idx], qtd: q, sub: svcSelecionado.valor * q }
+        return c
       }
-      return [...prev, { sid: sv.id, nome: sv.nome, tipo: sv.tipo, valor: sv.valor, qtd: q, sub: sv.valor * q }]
+      return [...prev, {
+        sid: svcSelecionado.id, nome: svcSelecionado.nome,
+        tipo: svcSelecionado.tipo, valor: svcSelecionado.valor,
+        qtd: q, sub: svcSelecionado.valor * q,
+      }]
     })
     setQtd('1')
   }
@@ -62,8 +67,8 @@ export default function NovoOrcamentoPage() {
   const salvar = async (pdf = false) => {
     if (!cliente.trim())    { setErro('Informe o nome do cliente'); return }
     if (itens.length === 0) { setErro('Adicione pelo menos um serviço'); return }
-    setErro('')
-    const orc = { cliente: cliente.trim(), descricao: descricao.trim(), data, itens, total }
+    setErro(''); setSalvando(true)
+    const orc = { cliente: cliente.trim(), descricao: descricao.trim(), data, itens, total, status: 'pendente' }
     const ref = await addDoc(colOrcamentos(user.uid), orc)
     if (pdf) gerarPDF({ id: ref.id, ...orc })
     router.push('/orcamentos')
@@ -71,7 +76,6 @@ export default function NovoOrcamentoPage() {
 
   return (
     <div>
-      {/* Dados do cliente */}
       <Card>
         <Label>Nome do cliente *</Label>
         <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Ex: João Silva" />
@@ -81,37 +85,35 @@ export default function NovoOrcamentoPage() {
         <Input type="date" value={data} onChange={e => setData(e.target.value)} />
       </Card>
 
-      {/* Serviços */}
       <Card>
         <div className="text-[14px] font-semibold mb-3 dark:text-gray-100">Serviços incluídos</div>
-
         {servicos.length === 0 ? (
           <p className="text-sm text-gray-400">Cadastre serviços na aba "Serviços" primeiro.</p>
         ) : (
           <>
             <Label>Selecione o serviço</Label>
-            <Select value={svcId} onChange={e => setSvcId(e.target.value)}>
+            <Select
+              value={svcSelecionado?.id ?? ''}
+              onChange={e => {
+                const sv = servicos.find(s => s.id === e.target.value)
+                if (sv) setSvcSelecionado(sv)
+              }}
+            >
               {servicos.map(s => (
                 <option key={s.id} value={s.id}>
                   {s.nome} — {fmtMoeda(s.valor)} {tipoLabel[s.tipo]}
                 </option>
               ))}
             </Select>
-
             <Label>Quantidade</Label>
             <div className="flex gap-2 mb-3.5">
               <InputQtd value={qtd} onChange={setQtd} placeholder="1" className="flex-1" />
-              <button
-                onClick={addItem}
-                className="bg-brand text-white rounded-xl px-4 font-semibold flex items-center gap-1 whitespace-nowrap"
-              >
+              <button onClick={addItem} className="bg-brand text-white rounded-xl px-4 font-semibold flex items-center gap-1 whitespace-nowrap">
                 <Plus size={16} /> Adicionar
               </button>
             </div>
           </>
         )}
-
-        {/* Lista de itens */}
         {itens.length > 0 && (
           <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
             {itens.map(i => (
@@ -141,30 +143,19 @@ export default function NovoOrcamentoPage() {
       <Erro msg={erro} />
 
       <div className="flex gap-2 mb-3">
-        <button
-          onClick={() => router.back()}
-          className="flex-1 py-3.5 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] dark:text-gray-300"
-        >
+        <button onClick={() => router.back()} className="flex-1 py-3.5 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] dark:text-gray-300">
           Cancelar
         </button>
-        <button
-          onClick={() => salvar(false)}
-          className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] font-semibold dark:text-gray-200"
-        >
+        <button onClick={() => salvar(false)} disabled={salvando} className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] font-semibold dark:text-gray-200 disabled:opacity-50">
           Salvar
         </button>
-        <button
-          onClick={() => salvar(true)}
-          className="flex-[2] py-3.5 bg-brand text-white rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2"
-        >
+        <button onClick={() => salvar(true)} disabled={salvando} className="flex-[2] py-3.5 bg-brand text-white rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
           <Printer size={15} /> Salvar + PDF
         </button>
       </div>
-
       <p className="text-center text-[12px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2.5">
         Ative pop-ups no navegador para gerar o PDF
       </p>
     </div>
   )
 }
-
