@@ -1,5 +1,4 @@
 // src/lib/types.ts
-// Tipos TypeScript compartilhados em todo o projeto
 
 export type TipoCobranca = 'm2' | 'diaria' | 'fixo'
 
@@ -20,13 +19,17 @@ export interface ItemOrcamento {
   sub: number
 }
 
+export type StatusOrcamento = 'pendente' | 'concluido'
+
 export interface Orcamento {
   id: string
   cliente: string
   descricao?: string
-  data: string          // ISO 'YYYY-MM-DD'
+  data: string
   itens: ItemOrcamento[]
   total: number
+  status?: StatusOrcamento   // 'pendente' (padrão) | 'concluido'
+  lancamentoId?: string      // ID do lançamento criado no financeiro
   criadoEm?: string
 }
 
@@ -37,18 +40,18 @@ export interface Lancamento {
   tipo: TipoLancamento
   desc: string
   valor: number
-  data: string          // ISO 'YYYY-MM-DD'
+  data: string
+  orcamentoId?: string       // referência ao orçamento de origem
   criadoEm?: string
 }
 
 export interface Foto {
   id: string
   nome: string
-  url: string           // URL do Firebase Storage
+  url: string
   criadoEm?: string
 }
 
-// Labels amigáveis
 export const tipoLabel: Record<TipoCobranca, string> = {
   m2:     'por m²',
   diaria: 'por diária',
@@ -59,3 +62,4 @@ export const tipoUnid: Record<TipoCobranca, string> = {
   diaria: 'dia(s)',
   fixo:   'un',
 }
+

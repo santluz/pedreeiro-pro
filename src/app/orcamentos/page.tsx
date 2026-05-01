@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, CheckCircle2, Clock } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import LoginScreen from '@/components/ui/LoginScreen'
 import { Card, BtnPrimary, Vazio, Loading } from '@/components/ui'
@@ -31,25 +31,31 @@ export default function OrcamentosPage() {
   if (!user)      return <LoginScreen />
   if (carregando) return <Loading />
 
-  return (
-    <div>
-      <BtnPrimary onClick={() => router.push('/orcamentos/novo')}>
-        <Plus size={18} strokeWidth={2.5} /> Novo Orçamento
-      </BtnPrimary>
+  const pendentes  = orcamentos.filter(o => !o.status || o.status === 'pendente')
+  const concluidos = orcamentos.filter(o => o.status === 'concluido')
 
-      {orcamentos.length === 0 && (
-        <Vazio emoji="📋" texto="Nenhum orçamento criado ainda" sub="Toque no botão acima para criar o primeiro" />
+  const renderLista = (lista: Orcamento[], titulo: string) => (
+    <>
+      {lista.length > 0 && (
+        <div className="text-[12px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2 mt-4 px-1">
+          {titulo}
+        </div>
       )}
-
-      {orcamentos.map(o => (
+      {lista.map(o => (
         <Card key={o.id} onClick={() => router.push(`/orcamentos/${o.id}`)}>
           <div className="flex justify-between items-start gap-3">
             <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-semibold">{o.cliente}</div>
+              <div className="flex items-center gap-2 mb-0.5">
+                {o.status === 'concluido'
+                  ? <CheckCircle2 size={15} className="text-green-500 flex-shrink-0" />
+                  : <Clock size={15} className="text-amber-500 flex-shrink-0" />
+                }
+                <div className="text-[15px] font-semibold dark:text-gray-100 truncate">{o.cliente}</div>
+              </div>
               {o.descricao && (
-                <div className="text-[12px] text-gray-400 truncate">{o.descricao}</div>
+                <div className="text-[12px] text-gray-400 truncate ml-5">{o.descricao}</div>
               )}
-              <div className="text-[12px] text-gray-400 mt-1.5">
+              <div className="text-[12px] text-gray-400 mt-1 ml-5">
                 {fmtData(o.data)} · {o.itens.length} serviço{o.itens.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -60,6 +66,22 @@ export default function OrcamentosPage() {
           </div>
         </Card>
       ))}
+    </>
+  )
+
+  return (
+    <div>
+      <BtnPrimary onClick={() => router.push('/orcamentos/novo')}>
+        <Plus size={18} strokeWidth={2.5} /> Novo Orçamento
+      </BtnPrimary>
+
+      {orcamentos.length === 0 && (
+        <Vazio emoji="📋" texto="Nenhum orçamento criado ainda" sub="Toque no botão acima para criar o primeiro" />
+      )}
+
+      {renderLista(pendentes,  `⏳ Pendentes (${pendentes.length})`)}
+      {renderLista(concluidos, `✅ Concluídos (${concluidos.length})`)}
     </div>
   )
 }
+
