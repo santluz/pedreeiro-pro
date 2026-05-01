@@ -1,11 +1,12 @@
 'use client'
-// src/app/financeiro/page.tsx — Controle de entradas e despesas
+// src/app/financeiro/page.tsx
 
 import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import LoginScreen from '@/components/ui/LoginScreen'
 import { Card, BtnPrimary, Label, Input, Erro, Loading } from '@/components/ui'
+import { InputMoeda } from '@/components/ui/InputMoeda'
 import { colFinanceiro, addDoc, doc, deleteDoc, db, getDocs } from '@/lib/firebase'
 import { Lancamento, TipoLancamento } from '@/lib/types'
 import { fmtMoeda, fmtData, hoje, isNestesMes } from '@/lib/utils'
@@ -19,7 +20,6 @@ export default function FinanceiroPage() {
   const [tela,        setTela]        = useState<Tela>('lista')
   const [carregando,  setCarregando]  = useState(true)
 
-  // Form
   const [tipo,  setTipo]  = useState<TipoLancamento>('entrada')
   const [desc,  setDesc]  = useState('')
   const [valor, setValor] = useState('')
@@ -40,44 +40,42 @@ export default function FinanceiroPage() {
   if (!user)      return <LoginScreen />
   if (carregando) return <Loading />
 
-  // Cálculos do mês
   const finMes   = lancamentos.filter(f => isNestesMes(f.data))
   const entradas = finMes.filter(f => f.tipo === 'entrada').reduce((s, f) => s + f.valor, 0)
   const despesas = finMes.filter(f => f.tipo === 'despesa').reduce((s, f) => s + f.valor, 0)
   const saldo    = entradas - despesas
 
-  // ── Salvar lançamento ──
   const salvar = async () => {
-    if (!desc.trim())               { setErro('Informe a descrição'); return }
+    if (!desc.trim())                     { setErro('Informe a descrição'); return }
     if (!valor || parseFloat(valor) <= 0) { setErro('Informe o valor corretamente'); return }
     const dados: Omit<Lancamento, 'id'> = {
-      tipo,
-      desc: desc.trim(),
-      valor: parseFloat(valor),
-      data,
-      criadoEm: new Date().toISOString(),
+      tipo, desc: desc.trim(), valor: parseFloat(valor),
+      data, criadoEm: new Date().toISOString(),
     }
     const ref = await addDoc(colFinanceiro(user.uid), dados)
-    const novo: Lancamento = { id: ref.id, ...dados }
     setLancamentos(prev =>
-      [novo, ...prev].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+      [{ id: ref.id, ...dados }, ...prev]
+        .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
     )
     setDesc(''); setValor(''); setData(hoje()); setErro('')
     setTela('lista')
   }
 
-  // ── Excluir lançamento ──
   const excluir = async (id: string) => {
     if (!confirm('Excluir este lançamento?')) return
     await deleteDoc(doc(db, 'users', user.uid, 'financeiro', id))
     setLancamentos(prev => prev.filter(f => f.id !== id))
   }
 
+  const abrirForm = () => {
+    setTipo('entrada'); setDesc(''); setValor(''); setData(hoje()); setErro('')
+    setTela('form')
+  }
+
   // ── FORMULÁRIO ──
   if (tela === 'form') return (
     <div>
       <Card>
-        {/* Toggle entrada / despesa */}
         <Label>Tipo do lançamento</Label>
         <div className="flex gap-2 mb-4">
           {(['entrada', 'despesa'] as TipoLancamento[]).map(t => (
@@ -87,9 +85,9 @@ export default function FinanceiroPage() {
               className={`flex-1 py-3 rounded-xl text-[13px] font-semibold border-2 transition-all ${
                 tipo === t
                   ? t === 'entrada'
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-red-500 bg-red-50 text-red-600'
-                  : 'border-gray-200 text-gray-400 bg-gray-50'
+                    ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400'
+                    : 'border-red-500 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-400 bg-gray-50 dark:bg-gray-800'
               }`}
             >
               {t === 'entrada' ? '✓ Entrada (recebi)' : 'Despesa (gastei)'}
@@ -101,7 +99,7 @@ export default function FinanceiroPage() {
         <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ex: Pagamento do João Silva" />
 
         <Label>Valor (R$) *</Label>
-        <Input type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" min="0" step="0.01" />
+        <InputMoeda value={valor} onChange={setValor} placeholder="0,00" />
 
         <Label>Data</Label>
         <Input type="date" value={data} onChange={e => setData(e.target.value)} />
@@ -109,7 +107,10 @@ export default function FinanceiroPage() {
         <Erro msg={erro} />
 
         <div className="flex gap-2.5">
-          <button onClick={() => setTela('lista')} className="flex-1 py-3.5 border border-gray-200 rounded-xl text-[15px]">
+          <button
+            onClick={() => setTela('lista')}
+            className="flex-1 py-3.5 border border-gray-200 dark:border-gray-600 rounded-xl text-[15px] dark:text-gray-300"
+          >
             Cancelar
           </button>
           <button
@@ -128,49 +129,48 @@ export default function FinanceiroPage() {
   // ── LISTA ──
   return (
     <div>
-      {/* Resumo do mês */}
+      {/* Resumo */}
       <div className="grid grid-cols-2 gap-2.5 mb-3">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-3.5 text-center">
-          <div className="text-[11px] text-green-700 mb-1">Entradas do mês</div>
-          <div className="text-[19px] font-bold text-green-700">{fmtMoeda(entradas)}</div>
+        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl p-3.5 text-center">
+          <div className="text-[11px] text-green-700 dark:text-green-400 mb-1">Entradas do mês</div>
+          <div className="text-[19px] font-bold text-green-700 dark:text-green-400">{fmtMoeda(entradas)}</div>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 text-center">
-          <div className="text-[11px] text-red-600 mb-1">Despesas do mês</div>
-          <div className="text-[19px] font-bold text-red-600">{fmtMoeda(despesas)}</div>
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl p-3.5 text-center">
+          <div className="text-[11px] text-red-600 dark:text-red-400 mb-1">Despesas do mês</div>
+          <div className="text-[19px] font-bold text-red-600 dark:text-red-400">{fmtMoeda(despesas)}</div>
         </div>
       </div>
 
       {/* Saldo */}
       <div className={`rounded-2xl p-4 mb-3 text-center border ${
         saldo >= 0
-          ? 'bg-green-50 border-green-200'
-          : 'bg-red-50 border-red-200'
+          ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'
+          : 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
       }`}>
-        <div className="text-[13px] text-gray-500 mb-1">Saldo líquido do mês</div>
-        <div className={`text-[30px] font-bold ${saldo >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+        <div className="text-[13px] text-gray-500 dark:text-gray-400 mb-1">Saldo líquido do mês</div>
+        <div className={`text-[30px] font-bold ${saldo >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
           {fmtMoeda(saldo)}
         </div>
       </div>
 
-      <BtnPrimary onClick={() => { setTipo('entrada'); setDesc(''); setValor(''); setData(hoje()); setErro(''); setTela('form') }}>
+      <BtnPrimary onClick={abrirForm}>
         <Plus size={18} strokeWidth={2.5} /> Novo Lançamento
       </BtnPrimary>
 
       <Card>
-        <div className="text-[14px] font-semibold mb-3">Todos os lançamentos</div>
+        <div className="text-[14px] font-semibold mb-3 dark:text-gray-100">Todos os lançamentos</div>
         {lancamentos.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">Nenhum lançamento registrado ainda.</p>
+          <p className="text-sm text-gray-400 text-center py-4">Nenhum lançamento ainda.</p>
         )}
         {lancamentos.map(f => (
-          <div key={f.id} className="flex items-start gap-2.5 py-2.5 border-b border-gray-50 last:border-none">
-            {/* Ponto colorido */}
+          <div key={f.id} className="flex items-start gap-2.5 py-2.5 border-b border-gray-50 dark:border-gray-700 last:border-none">
             <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${f.tipo === 'entrada' ? 'bg-green-500' : 'bg-red-500'}`} />
             <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-medium truncate">{f.desc}</div>
+              <div className="text-[14px] font-medium truncate dark:text-gray-100">{f.desc}</div>
               <div className="text-[12px] text-gray-400">{fmtData(f.data)}</div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-              <span className={`text-[14px] font-bold ${f.tipo === 'entrada' ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`text-[14px] font-bold ${f.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                 {f.tipo === 'entrada' ? '+' : '-'}{fmtMoeda(f.valor)}
               </span>
               <button onClick={() => excluir(f.id)} className="text-gray-300 hover:text-red-400 p-1">
@@ -183,3 +183,4 @@ export default function FinanceiroPage() {
     </div>
   )
 }
+

@@ -1,5 +1,5 @@
 'use client'
-// src/app/orcamentos/novo/page.tsx — Formulário de novo orçamento
+// src/app/orcamentos/novo/page.tsx
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -7,6 +7,7 @@ import { Plus, Trash2, Printer } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import LoginScreen from '@/components/ui/LoginScreen'
 import { Card, Label, Input, Select, Erro, Loading } from '@/components/ui'
+import { InputQtd } from '@/components/ui/InputMoeda'
 import { colServicos, colOrcamentos, getDocs, addDoc } from '@/lib/firebase'
 import { Servico, ItemOrcamento, tipoLabel, tipoUnid } from '@/lib/types'
 import { fmtMoeda, hoje, gerarPDF } from '@/lib/utils'
@@ -15,19 +16,16 @@ export default function NovoOrcamentoPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  const [servicos, setServicos] = useState<Servico[]>([])
-  const [itens,    setItens]    = useState<ItemOrcamento[]>([])
+  const [servicos,   setServicos]   = useState<Servico[]>([])
+  const [itens,      setItens]      = useState<ItemOrcamento[]>([])
   const [carregando, setCarregando] = useState(true)
 
-  // Campos do cabeçalho
-  const [cliente,  setCliente]  = useState('')
-  const [descricao,setDescricao]= useState('')
-  const [data,     setData]     = useState(hoje())
-
-  // Seleção de serviço
-  const [svcId, setSvcId] = useState('')
-  const [qtd,   setQtd]   = useState('1')
-  const [erro,  setErro]  = useState('')
+  const [cliente,   setCliente]   = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [data,      setData]      = useState(hoje())
+  const [svcId,     setSvcId]     = useState('')
+  const [qtd,       setQtd]       = useState('1')
+  const [erro,      setErro]      = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -52,9 +50,7 @@ export default function NovoOrcamentoPage() {
     setItens(prev => {
       const idx = prev.findIndex(i => i.sid === sv.id)
       if (idx >= 0) {
-        const copia = [...prev]
-        copia[idx] = { ...copia[idx], qtd: q, sub: sv.valor * q }
-        return copia
+        const c = [...prev]; c[idx] = { ...c[idx], qtd: q, sub: sv.valor * q }; return c
       }
       return [...prev, { sid: sv.id, nome: sv.nome, tipo: sv.tipo, valor: sv.valor, qtd: q, sub: sv.valor * q }]
     })
@@ -64,8 +60,8 @@ export default function NovoOrcamentoPage() {
   const removerItem = (sid: string) => setItens(prev => prev.filter(i => i.sid !== sid))
 
   const salvar = async (pdf = false) => {
-    if (!cliente.trim())   { setErro('Informe o nome do cliente'); return }
-    if (itens.length === 0){ setErro('Adicione pelo menos um serviço'); return }
+    if (!cliente.trim())    { setErro('Informe o nome do cliente'); return }
+    if (itens.length === 0) { setErro('Adicione pelo menos um serviço'); return }
     setErro('')
     const orc = { cliente: cliente.trim(), descricao: descricao.trim(), data, itens, total }
     const ref = await addDoc(colOrcamentos(user.uid), orc)
@@ -75,7 +71,7 @@ export default function NovoOrcamentoPage() {
 
   return (
     <div>
-      {/* ── Dados do cliente ── */}
+      {/* Dados do cliente */}
       <Card>
         <Label>Nome do cliente *</Label>
         <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Ex: João Silva" />
@@ -85,14 +81,12 @@ export default function NovoOrcamentoPage() {
         <Input type="date" value={data} onChange={e => setData(e.target.value)} />
       </Card>
 
-      {/* ── Adicionar serviços ── */}
+      {/* Serviços */}
       <Card>
-        <div className="text-[14px] font-semibold mb-3">Serviços incluídos</div>
+        <div className="text-[14px] font-semibold mb-3 dark:text-gray-100">Serviços incluídos</div>
 
         {servicos.length === 0 ? (
-          <p className="text-sm text-gray-400">
-            Cadastre serviços na aba "Serviços" antes de criar um orçamento.
-          </p>
+          <p className="text-sm text-gray-400">Cadastre serviços na aba "Serviços" primeiro.</p>
         ) : (
           <>
             <Label>Selecione o serviço</Label>
@@ -106,12 +100,7 @@ export default function NovoOrcamentoPage() {
 
             <Label>Quantidade</Label>
             <div className="flex gap-2 mb-3.5">
-              <Input
-                type="number" value={qtd}
-                onChange={e => setQtd(e.target.value)}
-                className="flex-1 mb-0" min="0.1" step="0.1"
-                style={{ marginBottom: 0 }}
-              />
+              <InputQtd value={qtd} onChange={setQtd} placeholder="1" className="flex-1" />
               <button
                 onClick={addItem}
                 className="bg-brand text-white rounded-xl px-4 font-semibold flex items-center gap-1 whitespace-nowrap"
@@ -122,14 +111,16 @@ export default function NovoOrcamentoPage() {
           </>
         )}
 
-        {/* Lista de itens adicionados */}
+        {/* Lista de itens */}
         {itens.length > 0 && (
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
             {itens.map(i => (
-              <div key={i.sid} className="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-none">
+              <div key={i.sid} className="flex justify-between items-center py-2.5 border-b border-gray-50 dark:border-gray-700 last:border-none">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-medium">{i.nome}</div>
-                  <div className="text-[12px] text-gray-400">{i.qtd} {tipoUnid[i.tipo]} × {fmtMoeda(i.valor)}</div>
+                  <div className="text-[14px] font-medium dark:text-gray-100">{i.nome}</div>
+                  <div className="text-[12px] text-gray-400">
+                    {String(i.qtd).replace('.', ',')} {tipoUnid[i.tipo]} × {fmtMoeda(i.valor)}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2.5 flex-shrink-0">
                   <span className="text-[15px] font-bold text-brand">{fmtMoeda(i.sub)}</span>
@@ -139,7 +130,7 @@ export default function NovoOrcamentoPage() {
                 </div>
               </div>
             ))}
-            <div className="flex justify-between items-center pt-3.5 text-[19px] font-bold">
+            <div className="flex justify-between items-center pt-3.5 text-[19px] font-bold dark:text-gray-100">
               <span>Total</span>
               <span className="text-brand">{fmtMoeda(total)}</span>
             </div>
@@ -150,10 +141,16 @@ export default function NovoOrcamentoPage() {
       <Erro msg={erro} />
 
       <div className="flex gap-2 mb-3">
-        <button onClick={() => router.back()} className="flex-1 py-3.5 border border-gray-200 rounded-xl text-[14px]">
+        <button
+          onClick={() => router.back()}
+          className="flex-1 py-3.5 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] dark:text-gray-300"
+        >
           Cancelar
         </button>
-        <button onClick={() => salvar(false)} className="flex-1 py-3.5 bg-gray-100 border border-gray-200 rounded-xl text-[14px] font-semibold">
+        <button
+          onClick={() => salvar(false)}
+          className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-[14px] font-semibold dark:text-gray-200"
+        >
           Salvar
         </button>
         <button
@@ -164,9 +161,10 @@ export default function NovoOrcamentoPage() {
         </button>
       </div>
 
-      <p className="text-center text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+      <p className="text-center text-[12px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2.5">
         Ative pop-ups no navegador para gerar o PDF
       </p>
     </div>
   )
 }
+

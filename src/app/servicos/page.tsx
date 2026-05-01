@@ -1,14 +1,13 @@
 'use client'
-// src/app/servicos/page.tsx — Cadastro e listagem de serviços
+// src/app/servicos/page.tsx
 
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import LoginScreen from '@/components/ui/LoginScreen'
 import { Card, BtnPrimary, Label, Input, Select, Vazio, Erro, Loading } from '@/components/ui'
-import {
-  colServicos, addDoc, doc, updateDoc, deleteDoc, db, getDocs
-} from '@/lib/firebase'
+import { InputMoeda } from '@/components/ui/InputMoeda'
+import { colServicos, addDoc, doc, updateDoc, deleteDoc, db, getDocs } from '@/lib/firebase'
 import { Servico, tipoLabel, TipoCobranca } from '@/lib/types'
 import { fmtMoeda } from '@/lib/utils'
 
@@ -21,7 +20,6 @@ export default function ServicosPage() {
   const [editando,   setEditando]   = useState<Servico | null>(null)
   const [carregando, setCarregando] = useState(true)
 
-  // Form state
   const [nome,  setNome]  = useState('')
   const [tipo,  setTipo]  = useState<TipoCobranca>('m2')
   const [valor, setValor] = useState('')
@@ -39,19 +37,18 @@ export default function ServicosPage() {
   if (!user)      return <LoginScreen />
   if (carregando) return <Loading />
 
-  // ── Abrir formulário ──
   const abrirAdd = () => {
     setEditando(null); setNome(''); setTipo('m2'); setValor(''); setErro('')
     setTela('form')
   }
   const abrirEdit = (s: Servico) => {
-    setEditando(s); setNome(s.nome); setTipo(s.tipo); setValor(String(s.valor)); setErro('')
+    setEditando(s); setNome(s.nome); setTipo(s.tipo)
+    setValor(String(s.valor)); setErro('')
     setTela('form')
   }
 
-  // ── Salvar ──
   const salvar = async () => {
-    if (!nome.trim())               { setErro('Informe o nome do serviço'); return }
+    if (!nome.trim())                     { setErro('Informe o nome do serviço'); return }
     if (!valor || parseFloat(valor) <= 0) { setErro('Informe o valor corretamente'); return }
     const dados = { nome: nome.trim(), tipo, valor: parseFloat(valor) }
     if (editando) {
@@ -64,14 +61,12 @@ export default function ServicosPage() {
     setTela('lista')
   }
 
-  // ── Excluir ──
   const excluir = async (id: string) => {
     if (!confirm('Excluir este serviço?')) return
     await deleteDoc(doc(db, 'users', user.uid, 'servicos', id))
     setServicos(prev => prev.filter(s => s.id !== id))
   }
 
-  // ── FORMULÁRIO ──
   if (tela === 'form') return (
     <div>
       <Card>
@@ -86,12 +81,15 @@ export default function ServicosPage() {
         </Select>
 
         <Label>Valor (R$) *</Label>
-        <Input type="number" value={valor} onChange={e => setValor(e.target.value)} placeholder="Ex: 45.00" min="0" step="0.01" />
+        <InputMoeda value={valor} onChange={setValor} placeholder="0,00" />
 
         <Erro msg={erro} />
 
         <div className="flex gap-2.5">
-          <button onClick={() => setTela('lista')} className="flex-1 py-3.5 border border-gray-200 rounded-xl text-[15px]">
+          <button
+            onClick={() => setTela('lista')}
+            className="flex-1 py-3.5 border border-gray-200 dark:border-gray-600 rounded-xl text-[15px] dark:text-gray-300"
+          >
             Cancelar
           </button>
           <BtnPrimary className="flex-[2] mb-0" onClick={salvar}>
@@ -102,7 +100,6 @@ export default function ServicosPage() {
     </div>
   )
 
-  // ── LISTA ──
   return (
     <div>
       <BtnPrimary onClick={abrirAdd}>
@@ -116,15 +113,15 @@ export default function ServicosPage() {
       {servicos.map(s => (
         <Card key={s.id} className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="text-[15px] font-semibold">{s.nome}</div>
+            <div className="text-[15px] font-semibold dark:text-gray-100">{s.nome}</div>
             <div className="text-[12px] text-gray-400">{tipoLabel[s.tipo]}</div>
             <div className="text-[17px] font-bold text-brand mt-1">{fmtMoeda(s.valor)}</div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <button onClick={() => abrirEdit(s)} className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
-              <Pencil size={16} className="text-gray-500" />
+            <button onClick={() => abrirEdit(s)} className="p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-xl">
+              <Pencil size={16} className="text-gray-500 dark:text-gray-400" />
             </button>
-            <button onClick={() => excluir(s.id)} className="p-2.5 bg-red-50 border border-red-100 rounded-xl">
+            <button onClick={() => excluir(s.id)} className="p-2.5 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-800 rounded-xl">
               <Trash2 size={16} className="text-red-500" />
             </button>
           </div>
@@ -133,3 +130,4 @@ export default function ServicosPage() {
     </div>
   )
 }
+
