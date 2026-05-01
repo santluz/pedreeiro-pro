@@ -68,7 +68,7 @@ export default function NovoOrcamentoPage() {
     if (!cliente.trim())    { setErro('Informe o nome do cliente'); return }
     if (itens.length === 0) { setErro('Adicione pelo menos um serviço'); return }
     setErro(''); setSalvando(true)
-    const orc = { cliente: cliente.trim(), descricao: descricao.trim(), data, itens, total, status: 'pendente' }
+    const orc = { cliente: cliente.trim(), descricao: descricao.trim(), data, itens, total, status: 'pendente' as const }
     const ref = await addDoc(colOrcamentos(user.uid), orc)
     if (pdf) gerarPDF({ id: ref.id, ...orc })
     router.push('/orcamentos')
