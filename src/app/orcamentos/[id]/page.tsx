@@ -42,26 +42,26 @@ export default function VerOrcamentoPage() {
   const marcarConcluido = async () => {
     if (concluido) return
     setSalvando(true)
-
-    // Cria o lançamento de entrada no financeiro
-    const lancamento = {
-      tipo: 'entrada' as const,
-      desc: `Serviço concluído — ${orc.cliente}`,
-      valor: orc.total,
-      data: hoje(),
-      orcamentoId: orc.id,
-      criadoEm: new Date().toISOString(),
+    try {
+      const lancamento = {
+        tipo: 'entrada' as const,
+        desc: `Serviço concluído — ${orc.cliente}`,
+        valor: orc.total,
+        data: hoje(),
+        orcamentoId: orc.id,
+        criadoEm: new Date().toISOString(),
+      }
+      const lancRef = await addDoc(colFinanceiro(user.uid), lancamento)
+      await updateDoc(doc(db, 'users', user.uid, 'orcamentos', id), {
+        status: 'concluido',
+        lancamentoId: lancRef.id,
+      })
+      setOrc(prev => prev ? { ...prev, status: 'concluido' as const, lancamentoId: lancRef.id } : prev)
+    } catch (err: any) {
+      alert('Erro ao concluir: ' + (err?.message || 'Verifique as regras do Firestore.'))
+    } finally {
+      setSalvando(false)
     }
-    const lancRef = await addDoc(colFinanceiro(user.uid), lancamento)
-
-    // Atualiza o orçamento com status e referência ao lançamento
-    await updateDoc(doc(db, 'users', user.uid, 'orcamentos', id), {
-      status: 'concluido',
-      lancamentoId: lancRef.id,
-    })
-
-    setOrc(prev => prev ? { ...prev, status: 'concluido', lancamentoId: lancRef.id } : prev)
-    setSalvando(false)
   }
 
   // ── Reverter para pendente → remove a entrada do financeiro ──
